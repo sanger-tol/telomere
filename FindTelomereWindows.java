@@ -15,13 +15,15 @@ public class FindTelomereWindows {
   private static final NumberFormat nf = new DecimalFormat("############.#");
   private static final int WINDOW_SIZE = 1000;
   private static final int MIN_OFFSET = 0;
-  private static double THRESHOLD = 0.4;
+  private static final double DEFAULT_THRESHOLD = 0.4;
+  private static final double DEFAULT_THRESHOLD_SPLIT = 0.05;
+  private static double THRESHOLD = DEFAULT_THRESHOLD;
 
    public FindTelomereWindows() {
    }
 
    public static void printUsage() {
-      System.err.println("Usage: java -jar FindTelomereWindows.jar <in> <identity> <threshold>");
+      System.err.println("Usage: java -jar FindTelomereWindows.jar [--split] <in> <identity> [threshold]");
       System.err.println("This program sizes a fasta or fastq file. Multiple fasta files can be supplied by using a comma-separated list.");
       System.err.println("Example usage: getHist fasta1.fasta,fasta2.fasta");
       System.err.println("");
@@ -40,36 +42,92 @@ public class FindTelomereWindows {
             break;
      }
    }
+
+  public static void processScaffoldSplit(String name, int length, BitSet b) {
+      if (b == null) { return; }
+
+      for (int i = MIN_OFFSET; i <= length; i+=WINDOW_SIZE/5) {
+         int car = b.get(i, Math.min(length, i+WINDOW_SIZE)).cardinality();
+         int den = Math.min(WINDOW_SIZE, length-i);
+         if ((double)car / den >= THRESHOLD)
+            System.out.println("Window\t" + name + "\t" + length + "\t" + i + "\t" + (i+den) + "\t" + ((double)car / den));
+
+         if (i+WINDOW_SIZE >= length)
+            break;
+      }
+  }
    
    public static void main(String[] args) throws Exception {     
-      if (args.length < 1) { printUsage(); System.exit(1);}
-
-      if (args.length == 3) {
-          THRESHOLD = Double.parseDouble(args[2]);
+      boolean splitWindows = false;
+      ArrayList<String> positionalArgs = new ArrayList<String>();
+      for (String arg : args) {
+         if ("--split".equals(arg)) {
+            splitWindows = true;
+         } else {
+            positionalArgs.add(arg);
+         }
       }
 
-      // initialize sizes
-      BitSet scaffold = null;
-      String name = null;
-      int length = 0;
-      Double identity = Double.parseDouble(args[1]) / 100;
+      if (positionalArgs.size() < 2) { printUsage(); System.exit(1);}
+
+      THRESHOLD = splitWindows ? DEFAULT_THRESHOLD_SPLIT : DEFAULT_THRESHOLD;
+      if (positionalArgs.size() >= 3) {
+          THRESHOLD = Double.parseDouble(positionalArgs.get(2));
+      }
+
+      Double identity = Double.parseDouble(positionalArgs.get(1)) / 100;
       THRESHOLD = THRESHOLD * Math.pow(identity, 6);
       System.err.println("Given error rate of " + identity + " running with adjusted threshold of " + THRESHOLD + " due to survival prob " + Math.pow(identity, 6));
 
-      BufferedReader bf = Utils.getFile(args[0], "telomere");
-      String line = null;
-      while ((line = bf.readLine()) != null) {
-          String[] split = line.trim().split("\\s+");
-          if (scaffold == null || !split[0].equalsIgnoreCase(name)) {
-             processScaffold(name, scaffold, length);
-             length = Integer.parseInt(split[split.length-5]);
-             scaffold = new BitSet(length);
-             name = split[0];
+      BufferedReader bf = Utils.getFile(positionalArgs.get(0), "telomere");
+      if (splitWindows) {
+         BitSet fwd = null;
+         BitSet rev = null;
+         String name = null;
+         int length = 0;
+         int offset = 0;
+         String line = null;
+         while ((line = bf.readLine()) != null) {
+             String[] split = line.trim().split("\\s+");
+             if (split.length > 6) { offset = split.length - 6; }
+             if (fwd == null || !split[0].equalsIgnoreCase(name)) {
+                processScaffoldSplit(name+"_fwd", length, fwd);
+                processScaffoldSplit(name+"_rev", length, rev);
+                fwd = new BitSet(Integer.parseInt(split[1+offset]));
+                rev = new BitSet(Integer.parseInt(split[1+offset]));
+                length = Integer.parseInt(split[1+offset]);
+                name = split[0];
+             }
+             if (Integer.parseInt(split[2+offset]) == 0) {
+                fwd.set(Integer.parseInt(split[3+offset]), Integer.parseInt(split[4+offset]));
+             } else if (Integer.parseInt(split[2+offset]) == 1) {
+                rev.set(Integer.parseInt(split[3+offset]), Integer.parseInt(split[4+offset]));
+             } else {
+                System.err.println("Unknown orientation on line " + line);
+                System.exit(1);
+             }
           }
-          //ignoring strandedness for now
-          scaffold.set(Integer.parseInt(split[split.length-3]), Integer.parseInt(split[split.length-2]));
+         processScaffoldSplit(name+"_fwd", length, fwd);
+         processScaffoldSplit(name+"_rev", length, rev);
+      } else {
+         // initialize sizes
+         BitSet scaffold = null;
+         String name = null;
+         int length = 0;
+         String line = null;
+         while ((line = bf.readLine()) != null) {
+             String[] split = line.trim().split("\\s+");
+             if (scaffold == null || !split[0].equalsIgnoreCase(name)) {
+                processScaffold(name, scaffold, length);
+                length = Integer.parseInt(split[split.length-5]);
+                scaffold = new BitSet(length);
+                name = split[0];
+             }
+             // ignoring strandedness in default mode
+             scaffold.set(Integer.parseInt(split[split.length-3]), Integer.parseInt(split[split.length-2]));
+         }
+         processScaffold(name, scaffold, length);
       }
-      processScaffold(name, scaffold, length);
       bf.close();
    }
 }
