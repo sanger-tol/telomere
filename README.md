@@ -78,11 +78,17 @@ Expects **`$VGP_PIPELINE`** set so `find_telomere`, `telomere.jar`, and `sdust` 
 
 ```bash
 java -cp telomere.jar SizeFasta <assembly.fa> > prefix.lens
-java -cp telomere.jar FindTelomereWindows prefix.telomere <identity_percent> <threshold> > prefix.windows
+java -cp telomere.jar FindTelomereWindows prefix.telomere <identity_percent> [threshold] > prefix.windows
+java -cp telomere.jar FindTelomereWindows --split prefix.telomere <identity_percent> [threshold]
 java -cp telomere.jar FindTelomereBreaks prefix.lens prefix.sdust prefix.telomere > prefix.breaks
 ```
 
-- **`FindTelomereWindows`**: identity is typically given as e.g. `99.9` (percent); threshold defines minimum window occupancy (default base 0.4, scaled by identity).
+- **`FindTelomereWindows`**: identity is typically given as e.g. `99.9` (percent); threshold defines minimum window occupancy and is scaled by identity (`threshold * identity^6`).
+- **Default mode** (no `--split`): combines both strands in one window track; default base threshold is `0.4`.
+- **Split mode** (`--split`): writes two stranded output files (default base threshold `0.05`):
+  - if input is `prefix.telomere`: `prefix.fwd.windows` and `prefix.rev.windows`
+  - otherwise: `<input>.fwd.windows` and `<input>.rev.windows`
+  - scaffold names are unchanged in both files (no `_fwd` / `_rev` suffix)
 - **`FindTelomereBreaks`**: filters telomere runs shorter than 24 bp and uses dust masks to avoid calling repeats inside low-complexity-only regions.
 
 ### `telomere_analysis.sh` (BED / assembly QC)

@@ -28,39 +28,35 @@ public class FindTelomereWindows {
       System.err.println("Example usage: getHist fasta1.fasta,fasta2.fasta");
       System.err.println("");
    }
-   public static void processScaffold(String name, BitSet b, int length) {
-      if (b == null) { return; }
-
-
-       for (int i = MIN_OFFSET; i <= length; i+=WINDOW_SIZE/5) {
-         int car = b.get(i, Math.min(length, i+WINDOW_SIZE)).cardinality();
-         int den = Math.min(WINDOW_SIZE, length-i);
-         if ((double)car / den >= THRESHOLD)
-            System.out.println("Window\t" + name + "\t" + length + "\t" + i + "\t" + (i+den) + "\t" + ((double)car / den));
-
-         if (i+WINDOW_SIZE >= length)
-            break;
-     }
-   }
-
-  public static void processScaffoldSplit(String name, int length, BitSet b) {
+  public static void processScaffoldToStream(String name, BitSet b, int length, PrintStream out) {
       if (b == null) { return; }
 
       for (int i = MIN_OFFSET; i <= length; i+=WINDOW_SIZE/5) {
          int car = b.get(i, Math.min(length, i+WINDOW_SIZE)).cardinality();
          int den = Math.min(WINDOW_SIZE, length-i);
          if ((double)car / den >= THRESHOLD)
-            System.out.println("Window\t" + name + "\t" + length + "\t" + i + "\t" + (i+den) + "\t" + ((double)car / den));
+            out.println("Window\t" + name + "\t" + length + "\t" + i + "\t" + (i+den) + "\t" + ((double)car / den));
 
          if (i+WINDOW_SIZE >= length)
             break;
       }
   }
+   public static void processScaffold(String name, BitSet b, int length) {
+      processScaffoldToStream(name, b, length, System.out);
+   }
    
+  public static String splitOutputPrefix(String inFile) {
+      if (inFile.endsWith(".telomere")) {
+         return inFile.substring(0, inFile.length() - ".telomere".length());
+      }
+      return inFile;
+  }
+  
    public static void main(String[] args) throws Exception {     
       boolean splitWindows = false;
       ArrayList<String> positionalArgs = new ArrayList<String>();
-      for (String arg : args) {
+      for (int i = 0; i < args.length; i++) {
+         String arg = args[i];
          if ("--split".equals(arg)) {
             splitWindows = true;
          } else {
@@ -81,6 +77,10 @@ public class FindTelomereWindows {
 
       BufferedReader bf = Utils.getFile(positionalArgs.get(0), "telomere");
       if (splitWindows) {
+         String splitPrefix = splitOutputPrefix(positionalArgs.get(0));
+         PrintStream fwdOut = new PrintStream(splitPrefix + ".fwd.windows");
+         PrintStream revOut = new PrintStream(splitPrefix + ".rev.windows");
+         System.err.println("Writing split windows to " + splitPrefix + ".fwd.windows and " + splitPrefix + ".rev.windows");
          BitSet fwd = null;
          BitSet rev = null;
          String name = null;
@@ -91,8 +91,8 @@ public class FindTelomereWindows {
              String[] split = line.trim().split("\\s+");
              if (split.length > 6) { offset = split.length - 6; }
              if (fwd == null || !split[0].equalsIgnoreCase(name)) {
-                processScaffoldSplit(name+"_fwd", length, fwd);
-                processScaffoldSplit(name+"_rev", length, rev);
+                processScaffoldToStream(name, fwd, length, fwdOut);
+                processScaffoldToStream(name, rev, length, revOut);
                 fwd = new BitSet(Integer.parseInt(split[1+offset]));
                 rev = new BitSet(Integer.parseInt(split[1+offset]));
                 length = Integer.parseInt(split[1+offset]);
@@ -107,8 +107,10 @@ public class FindTelomereWindows {
                 System.exit(1);
              }
           }
-         processScaffoldSplit(name+"_fwd", length, fwd);
-         processScaffoldSplit(name+"_rev", length, rev);
+         processScaffoldToStream(name, fwd, length, fwdOut);
+         processScaffoldToStream(name, rev, length, revOut);
+         fwdOut.close();
+         revOut.close();
       } else {
          // initialize sizes
          BitSet scaffold = null;
