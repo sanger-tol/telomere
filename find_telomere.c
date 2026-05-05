@@ -2,9 +2,16 @@
 #include <string>
 #include <fstream>
 #include <cstdio>
+#include <cctype>
 #include <zlib.h>
 
+static void to_upper_inplace(std::string &s) {
+  for (char &ch : s)
+    ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+}
+
 std::string rc(std::string str) {
+  to_upper_inplace(str);
   std::string DNAseq(str);
 
   size_t c = 0;
@@ -108,13 +115,15 @@ static std::string scaffold_name_from_header(const std::string &line) {
 }
 
 static void handle_line(const std::string &line, std::string &str, std::string &header,
-                        int argc, char **argv, std::ofstream &bed_fwd,
+                        const std::string &motif, std::ofstream &bed_fwd,
                         std::ofstream &bed_rev) {
   if (!is_fasta_header_line(line)) {
-    str.append(line);
+    std::string seq = line;
+    to_upper_inplace(seq);
+    str.append(seq);
   } else {
     if (str.length() > 0) {
-      find_motif(str, header, (argc >= 3 ? argv[2] : "TTAGGG"), bed_fwd, bed_rev);
+      find_motif(str, header, motif, bed_fwd, bed_rev);
     }
     str = "";
     header = scaffold_name_from_header(line);
@@ -129,6 +138,9 @@ int main(int argc, char * argv[])
      std::cerr << "  Tabular hits go to stdout; BED6 to <input>.fwd.telomere.bed and <input>.rev.telomere.bed" << std::endl;
      exit(1);
    }
+
+  std::string motif = (argc >= 3 ? argv[2] : "TTAGGG");
+  to_upper_inplace(motif);
 
   const std::string bed_fwd_path = std::string(argv[1]) + ".fwd.telomere.bed";
   const std::string bed_rev_path = std::string(argv[1]) + ".rev.telomere.bed";
@@ -156,7 +168,7 @@ int main(int argc, char * argv[])
     while (gzgets(gz, buf, sizeof(buf)) != nullptr) {
       std::string line(buf);
       trim_eol(line);
-      handle_line(line, str, header, argc, argv, bed_fwd, bed_rev);
+      handle_line(line, str, header, motif, bed_fwd, bed_rev);
     }
     if (!gzeof(gz)) {
       int gzerrnum;
@@ -174,13 +186,13 @@ int main(int argc, char * argv[])
     }
     std::string line;
     while (std::getline(infile, line)) {
-      handle_line(line, str, header, argc, argv, bed_fwd, bed_rev);
+      handle_line(line, str, header, motif, bed_fwd, bed_rev);
     }
     infile.close();
   }
 
   if (str.length() > 0) {
-    find_motif(str, header, (argc >= 3 ? argv[2] : "TTAGGG"), bed_fwd, bed_rev);
+    find_motif(str, header, motif, bed_fwd, bed_rev);
   }
 
   return 0;
