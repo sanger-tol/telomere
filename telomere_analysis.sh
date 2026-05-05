@@ -51,18 +51,18 @@ prefix=`echo $prefix | sed 's/.fasta$//g' | sed 's/.fa$//g'`
 
 #:<<'END'
 echo "
-$VGP_PIPELINE/telomere/find_telomere.sh $asm"
-$VGP_PIPELINE/telomere/find_telomere.sh $asm
+telomere/find_telomere.sh $asm"
+telomere/find_telomere.sh $asm
 echo ""
 #END
 
 echo "
-java -cp $VGP_PIPELINE/telomere/telomere.jar FindTelomereWindows $prefix.telomere 99.9 $threshold > $prefix.windows.$threshold"
-java -cp $VGP_PIPELINE/telomere/telomere.jar FindTelomereWindows $prefix.telomere 99.9 $threshold > $prefix.windows.$threshold
+java -cp telomere.jar FindTelomereWindows $prefix.telomere 99.9 $threshold > $prefix.windows.$threshold"
+java -cp telomere.jar FindTelomereWindows $prefix.telomere 99.9 $threshold > $prefix.windows.$threshold
 echo
 
 echo "Merge telomere motifs in 100bp"
-cat $prefix.windows.$threshold | awk '{print $2"\t"$(NF-2)"\t"$(NF-1)}' | sed 's/>//g' | bedtools merge -d 100  > $prefix.windows.$threshold.bed
+cat $prefix.windows.$threshold | awk '{print $1"\t"$2"\t"$3}' | sed 's/>//g' | bedtools merge -d 100  > $prefix.windows.$threshold.bed
 echo
 #END
 
@@ -84,23 +84,23 @@ awk -F "," '{print $1}' $csv  >> $genome.assigned
 
 #:<<'END'
 echo "Telomere signals in chr assigned scaffolds"
-java -jar -Xmx1g $VGP_PIPELINE/utils/txtContains.jar $prefix.windows.$threshold.bed $genome.assigned 1 > $prefix.windows.$threshold.chr.bed
-java -jar -Xmx1g $VGP_PIPELINE/utils/txtContains.jar $prefix.windows.$threshold.$ends.ends.bed $genome.assigned 1 > $prefix.windows.$threshold.$ends.chr.ends.bed
+java -jar -Xmx1g utils/txtContains.jar $prefix.windows.$threshold.bed $genome.assigned 1 > $prefix.windows.$threshold.chr.bed
+java -jar -Xmx1g utils/txtContains.jar $prefix.windows.$threshold.$ends.ends.bed $genome.assigned 1 > $prefix.windows.$threshold.$ends.chr.ends.bed
 
 echo "Num. of telomeres at chromosome ends"
 echo -e "Scaff\tStart\tEnd" > $prefix.windows.$threshold.$ends.chr.ends.u.bed
 bedtools intersect -u -a asm.ends.bed -b $prefix.windows.$threshold.bed >> $prefix.windows.$threshold.$ends.ends.u.bed
-java -jar -Xmx1g $VGP_PIPELINE/utils/txtContains.jar $prefix.windows.$threshold.$ends.ends.u.bed $genome.assigned 1 >> $prefix.windows.$threshold.$ends.chr.ends.u.bed
+java -jar -Xmx1g utils/txtContains.jar $prefix.windows.$threshold.$ends.ends.u.bed $genome.assigned 1 >> $prefix.windows.$threshold.$ends.chr.ends.u.bed
 #END
 
 echo "Attach ends"
 echo -e "Scaff\tSize" > $prefix.lens.key
 cat $prefix.lens >> $prefix.lens.key
-java -jar -Xmx1g $VGP_PIPELINE/utils/txtVlookup.jar $genome.assigned $prefix.lens.key $genome.assigned.size Scaff Scaff Size
+java -jar -Xmx1g utils/txtVlookup.jar $genome.assigned $prefix.lens.key $genome.assigned.size Scaff Scaff Size
 #END
 
 echo "Attach BE"
-java -jar -Xmx1g $VGP_PIPELINE/utils/txtVlookup.jar $genome.assigned.size $prefix.windows.$threshold.$ends.chr.ends.u.bed $genome.assigned.size.start Scaff Scaff Start
+java -jar -Xmx1g utils/txtVlookup.jar $genome.assigned.size $prefix.windows.$threshold.$ends.chr.ends.u.bed $genome.assigned.size.start Scaff Scaff Start
 cat $genome.assigned.size.start | awk -v genome=$genome '{if ($NF==0) {print genome"\t"$0"\tB"} else if ($NF=="NA") {print genome"\t"$0"\t0"} else {print genome"\t"$0"\tE"}}' | sort -k3 -nr > $genome.summary
 
 rm $genome.assigned.*

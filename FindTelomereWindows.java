@@ -1,8 +1,6 @@
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -10,9 +8,9 @@ import java.util.HashSet;
 import java.io.File;
 import java.io.PrintStream;
 import java.util.BitSet;
+import java.util.Locale;
 
 public class FindTelomereWindows {  
-  private static final NumberFormat nf = new DecimalFormat("############.#");
   private static final int WINDOW_SIZE = 1000;
   private static final int MIN_OFFSET = 0;
   private static final double DEFAULT_THRESHOLD = 0.4;
@@ -24,6 +22,7 @@ public class FindTelomereWindows {
 
    public static void printUsage() {
       System.err.println("Usage: java -jar FindTelomereWindows.jar [--split] <in> <identity> [threshold]");
+      System.err.println("Writes passing windows as bedGraph: chrom  start  end  density (0-based half-open).");
       System.err.println("This program sizes a fasta or fastq file. Multiple fasta files can be supplied by using a comma-separated list.");
       System.err.println("Example usage: getHist fasta1.fasta,fasta2.fasta");
       System.err.println("");
@@ -35,7 +34,7 @@ public class FindTelomereWindows {
          int car = b.get(i, Math.min(length, i+WINDOW_SIZE)).cardinality();
          int den = Math.min(WINDOW_SIZE, length-i);
          if ((double)car / den >= THRESHOLD)
-            out.println("Window\t" + name + "\t" + length + "\t" + i + "\t" + (i+den) + "\t" + ((double)car / den));
+            out.format(Locale.US, "%s\t%d\t%d\t%g%n", name, i, i + den, (double) car / den);
 
          if (i+WINDOW_SIZE >= length)
             break;
@@ -80,7 +79,7 @@ public class FindTelomereWindows {
          String splitPrefix = splitOutputPrefix(positionalArgs.get(0));
          PrintStream fwdOut = new PrintStream(splitPrefix + ".fwd.windows");
          PrintStream revOut = new PrintStream(splitPrefix + ".rev.windows");
-         System.err.println("Writing split windows to " + splitPrefix + ".fwd.windows and " + splitPrefix + ".rev.windows");
+         System.err.println("Writing split bedGraph tracks to " + splitPrefix + ".fwd.windows and " + splitPrefix + ".rev.windows");
          BitSet fwd = null;
          BitSet rev = null;
          String name = null;
