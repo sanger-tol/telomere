@@ -27,6 +27,7 @@ Shell wrappers tie these steps together for batch and cluster use.
 ## Requirements
 
 - **C++** compiler (`g++`) for `find_telomere.c`
+- **zlib** development headers/library (for reading `.gz` FASTA in `find_telomere`)
 - **Java** (JDK) to compile/run the `.java` tools and build `telomere.jar`
 - **minimap2** (for `sdust` — `find_telomere.sh` uses `module load minimap2`)
 - **bedtools** (for `telomere_analysis.sh`)
@@ -52,11 +53,17 @@ This runs `javac *.java`, packs **`telomere.jar`**, and compiles **`find_telomer
 ### `find_telomere` (standalone)
 
 ```text
-./find_telomere <assembly.fasta> [repeat]
+./find_telomere <assembly.fasta|assembly.fasta.gz> [repeat]
 ```
 
 - Second argument is optional; default repeat is **`TTAGGG`**.
-- Output lines include scaffold header, length, strand (0 = forward motif, 1 = reverse complement), start, end, and run length.
+- Input FASTA can be plain text or gzip-compressed (detected by gzip magic bytes; not just the filename extension).
+- Matching is case-insensitive (both input sequence and motif are normalized to uppercase).
+- Output lines to **stdout** are tab-separated: scaffold name, length, strand (`0` = forward motif, `1` = reverse complement), start, end, run length.
+  - Scaffold names are printed **without** a leading `>` from the FASTA header.
+- In addition, `find_telomere` writes **BED6** files alongside the input FASTA:
+  - `<input>.fwd.telomere.bed` (strand `+`, forward motif)
+  - `<input>.rev.telomere.bed` (strand `-`, reverse-complement motif)
 
 ### `find_telomere.sh` (full preprocessing)
 
@@ -79,16 +86,18 @@ Expects **`$VGP_PIPELINE`** set so `find_telomere`, `telomere.jar`, and `sdust` 
 ```bash
 java -cp telomere.jar SizeFasta <assembly.fa> > prefix.lens
 java -cp telomere.jar FindTelomereWindows prefix.telomere <identity_percent> [threshold] > prefix.windows
-java -cp telomere.jar FindTelomereWindows --split prefix.telomere <identity_percent> [threshold]
+java -cp telomere.jar FindTelomereWindows --split prefix.telomere <identity_percent> [threshold] > prefix.windows
 java -cp telomere.jar FindTelomereBreaks prefix.lens prefix.sdust prefix.telomere > prefix.breaks
 ```
 
 - **`FindTelomereWindows`**: identity is typically given as e.g. `99.9` (percent); threshold defines minimum window occupancy and is scaled by identity (`threshold * identity^6`).
-- **Default mode** (no `--split`): combines both strands in one window track; default base threshold is `0.4`.
+- **Output format**: bedGraph-like, tab-separated `chrom  start  end  score`, where `score = ceil(1000 * density)` (capped at 1000).
+- **Default mode** (no `--split`): combines both strands in one window track (printed to stdout); default base threshold is `0.4`.
 - **Split mode** (`--split`): writes two stranded output files (default base threshold `0.05`):
   - if input is `prefix.telomere`: `prefix.fwd.windows` and `prefix.rev.windows`
   - otherwise: `<input>.fwd.windows` and `<input>.rev.windows`
   - scaffold names are unchanged in both files (no `_fwd` / `_rev` suffix)
+  - combined (both-strand) windows are still emitted to **stdout** (so you can redirect to `prefix.windows` as in the example above)
 - **`FindTelomereBreaks`**: filters telomere runs shorter than 24 bp and uses dust masks to avoid calling repeats inside low-complexity-only regions.
 
 ### `telomere_analysis.sh` (BED / assembly QC)
