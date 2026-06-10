@@ -32,11 +32,6 @@ Shell wrappers tie these steps together for batch and cluster use.
 - **minimap2** (for `sdust` — `find_telomere.sh` uses `module load minimap2`)
 - **bedtools** (for `telomere_analysis.sh`)
 
-Optional / environment-specific:
-
-- Many scripts expect **`$VGP_PIPELINE`** to point to the parent pipeline tree containing `telomere/` (e.g. `$VGP_PIPELINE/telomere/find_telomere`, `telomere.jar`).
-- **`telomere_analysis.sh`** references additional JARs under `$VGP_PIPELINE/utils/` (`txtContains.jar`, `txtVlookup.jar`) for chromosome assignment workflows.
-
 ## Build
 
 From the repository root:
@@ -70,8 +65,6 @@ This runs `javac *.java`, packs **`telomere.jar`**, and compiles **`find_telomer
 ```bash
 ./find_telomere.sh /path/to/assembly.fasta
 ```
-
-Expects **`$VGP_PIPELINE`** set so `find_telomere`, `telomere.jar`, and `sdust` resolve. Produces (for `prefix` = basename without `.fa`/`.fasta`):
 
 | Output | Description |
 |--------|-------------|
