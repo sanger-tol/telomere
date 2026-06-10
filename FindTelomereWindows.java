@@ -33,8 +33,12 @@ public class FindTelomereWindows {
       for (int i = MIN_OFFSET; i <= length; i+=WINDOW_SIZE/5) {
          int car = b.get(i, Math.min(length, i+WINDOW_SIZE)).cardinality();
          int den = Math.min(WINDOW_SIZE, length-i);
-         if ((double)car / den >= THRESHOLD)
-            out.format(Locale.US, "%s\t%d\t%d\t%g%n", name, i, i + den, (double) car / den);
+         double density = (double) car / den;
+         if (density >= THRESHOLD) {
+            int score = (int) Math.ceil(density * 1000.0);
+            if (score > 1000) { score = 1000; }
+            out.format(Locale.US, "%s\t%d\t%d\t%d%n", name, i, i + den, score);
+         }
 
          if (i+WINDOW_SIZE >= length)
             break;
@@ -80,6 +84,7 @@ public class FindTelomereWindows {
          PrintStream fwdOut = new PrintStream(splitPrefix + ".fwd.windows");
          PrintStream revOut = new PrintStream(splitPrefix + ".rev.windows");
          System.err.println("Writing split bedGraph tracks to " + splitPrefix + ".fwd.windows and " + splitPrefix + ".rev.windows");
+         System.err.println("Also streaming combined windows (both strands) to stdout as usual.");
          BitSet fwd = null;
          BitSet rev = null;
          String name = null;
@@ -90,8 +95,16 @@ public class FindTelomereWindows {
              String[] split = line.trim().split("\\s+");
              if (split.length > 6) { offset = split.length - 6; }
              if (fwd == null || !split[0].equalsIgnoreCase(name)) {
+                // flush previous scaffold: strand-specific to files, combined to stdout
                 processScaffoldToStream(name, fwd, length, fwdOut);
                 processScaffoldToStream(name, rev, length, revOut);
+                BitSet prevCombined = null;
+                if (fwd != null || rev != null) {
+                   prevCombined = new BitSet(length);
+                   if (fwd != null) { prevCombined.or(fwd); }
+                   if (rev != null) { prevCombined.or(rev); }
+                   processScaffoldToStream(name, prevCombined, length, System.out);
+                }
                 fwd = new BitSet(Integer.parseInt(split[1+offset]));
                 rev = new BitSet(Integer.parseInt(split[1+offset]));
                 length = Integer.parseInt(split[1+offset]);
@@ -106,8 +119,15 @@ public class FindTelomereWindows {
                 System.exit(1);
              }
           }
+         // flush last scaffold
          processScaffoldToStream(name, fwd, length, fwdOut);
          processScaffoldToStream(name, rev, length, revOut);
+         if (name != null) {
+            BitSet combined = new BitSet(length);
+            if (fwd != null) { combined.or(fwd); }
+            if (rev != null) { combined.or(rev); }
+            processScaffoldToStream(name, combined, length, System.out);
+         }
          fwdOut.close();
          revOut.close();
       } else {
