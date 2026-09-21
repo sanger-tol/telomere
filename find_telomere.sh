@@ -21,8 +21,8 @@ find_telomere $file | awk '{print $1"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)
 sdust $file > $prefix.sdust
 java -cp telomere.jar SizeFasta $file > $prefix.lens
 
+# FindTelomereWindows writes prefix.telomere.bed and prefix.windows
+# (and with --split also fwd/rev beds + fwd/rev windows).
 # Lowering threshold to 0.10 (10%) from the initial 0.40 (40%)
-java -cp telomere.jar FindTelomereWindows $prefix.telomere 99.9 0.1 > $prefix.windows
+java -cp telomere.jar FindTelomereWindows $prefix.telomere 99.9 0.1
 java -cp telomere.jar FindTelomereBreaks $prefix.lens $prefix.sdust $prefix.telomere > $prefix.breaks
-
-
