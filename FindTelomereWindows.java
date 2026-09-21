@@ -245,6 +245,11 @@ public class FindTelomereWindows {
         }
       }
 
+      if (start < 0 || start >= end || end > length) {
+        System.err.println("Skipping out-of-range telomere line: " + line);
+        continue;
+      }
+
       Interval bed = new Interval(chrom, start, end, bedScore(start, end), strand);
       allBeds.add(bed);
       if (splitWindows) {
