@@ -69,7 +69,7 @@ This runs `javac *.java`, packs **`telomere.jar`**, and compiles **`find_telomer
 | Output | Description |
 |--------|-------------|
 | `prefix.telomere` | Motif hits (from `find_telomere`, reformatted TSV) |
-| `prefix.telomere.bed` | Combined motif runs (BED6) from `FindTelomereWindows` |
+| `prefix.telomere.bed` | Combined motif runs (5-column BED-like: `chrom start end score strand`) from `FindTelomereWindows` |
 | `prefix.windows` | Combined density windows from `FindTelomereWindows` |
 | `prefix.sdust` | `sdust` low-complexity intervals |
 | `prefix.lens` | Scaffold sizes (`SizeFasta`) |
