@@ -68,29 +68,36 @@ This runs `javac *.java`, packs **`telomere.jar`**, and compiles **`find_telomer
 
 | Output | Description |
 |--------|-------------|
-| `prefix.telomere` | Motif hits (from `find_telomere`, reformatted) |
+| `prefix.telomere` | Motif hits (from `find_telomere`, reformatted TSV) |
+| `prefix.telomere.bed` | Combined motif runs (5-column BED-like: `chrom start end score strand`) from `FindTelomereWindows` |
+| `prefix.windows` | Combined density windows from `FindTelomereWindows` |
 | `prefix.sdust` | `sdust` low-complexity intervals |
 | `prefix.lens` | Scaffold sizes (`SizeFasta`) |
-| `prefix.windows` | Telomere density windows (`FindTelomereWindows`, example args `99.9 0.1`) |
 | `prefix.breaks` | Refined breaks (`FindTelomereBreaks`) |
+
+(`find_telomere` may also write `<fasta>.fwd/.rev.telomere.bed` next to the FASTA; `FindTelomereWindows` is what writes the `prefix.*` BED/windows set.)
 
 ### Java entry points (classpath)
 
 ```bash
 java -cp telomere.jar SizeFasta <assembly.fa> > prefix.lens
-java -cp telomere.jar FindTelomereWindows prefix.telomere <identity_percent> [threshold] > prefix.windows
-java -cp telomere.jar FindTelomereWindows --split prefix.telomere <identity_percent> [threshold] > prefix.windows
+java -cp telomere.jar FindTelomereWindows prefix.telomere <identity_percent> [threshold]
+java -cp telomere.jar FindTelomereWindows --split prefix.telomere <identity_percent> [threshold]
 java -cp telomere.jar FindTelomereBreaks prefix.lens prefix.sdust prefix.telomere > prefix.breaks
 ```
 
-- **`FindTelomereWindows`**: identity is typically given as e.g. `99.9` (percent); threshold defines minimum window occupancy and is scaled by identity (`threshold * identity^6`).
-- **Output format**: bedGraph-like, tab-separated `chrom  start  end  score`, where `score = ceil(1000 * density)` (capped at 1000).
-- **Default mode** (no `--split`): combines both strands in one window track (printed to stdout); default base threshold is `0.4`.
-- **Split mode** (`--split`): writes two stranded output files (default base threshold `0.05`):
-  - if input is `prefix.telomere`: `prefix.fwd.windows` and `prefix.rev.windows`
-  - otherwise: `<input>.fwd.windows` and `<input>.rev.windows`
-  - scaffold names are unchanged in both files (no `_fwd` / `_rev` suffix)
-  - combined (both-strand) windows are still emitted to **stdout** (so you can redirect to `prefix.windows` as in the example above)
+- **`FindTelomereWindows`**: identity is typically given as e.g. `99.9` (percent); threshold defines minimum window occupancy and is scaled by identity (`threshold * identity^6`). Output prefix is taken from the input path with a trailing `.telomere` removed when present.
+- **Windows format**: bedGraph-like `chrom  start  end  score`, where `score = ceil(1000 * density)` (capped at 1000).
+- **Telomere BED format**: `chrom  start  end  score  strand` (`score` = run length, capped at 1000).
+- **Sorting**: all BED and windows files are sorted by `chrom`, then `start`, then `end`.
+- **Default mode** (no `--split`): writes only
+  - `prefix.telomere.bed` (all hits, both strands)
+  - `prefix.windows` (combined density)
+  - default base threshold `0.4`
+- **Split mode** (`--split`): writes
+  - `prefix.telomere.bed`, `prefix.fwd.telomere.bed`, `prefix.rev.telomere.bed`
+  - `prefix.windows`, `prefix.fwd.windows`, `prefix.rev.windows`
+  - default base threshold `0.05`
 - **`FindTelomereBreaks`**: filters telomere runs shorter than 24 bp and uses dust masks to avoid calling repeats inside low-complexity-only regions.
 
 ### `telomere_analysis.sh` (BED / assembly QC)
