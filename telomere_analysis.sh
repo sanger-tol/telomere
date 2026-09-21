@@ -58,10 +58,10 @@ echo ""
 
 echo "
 java -cp telomere.jar FindTelomereWindows $prefix.telomere 99.9 $threshold"
-java -cp telomere.jar FindTelomereWindows $prefix.telomere 99.9 $threshold
+java -cp telomere.jar FindTelomereWindows "$prefix.telomere" 99.9 "$threshold"
 # FindTelomereWindows writes $prefix.windows and $prefix.telomere.bed; keep threshold-tagged copies
-cp -f $prefix.windows $prefix.windows.$threshold
-cp -f $prefix.telomere.bed $prefix.telomere.$threshold.bed
+cp -f "$prefix.windows" "$prefix.windows.$threshold"
+cp -f "$prefix.telomere.bed" "$prefix.telomere.$threshold.bed"
 echo
 
 echo "Merge telomere motifs in 100bp"
